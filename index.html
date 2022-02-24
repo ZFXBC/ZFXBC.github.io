@@ -85,7 +85,7 @@
         
   
     <h1 itemprop="name">
-      <a class="p-name article-title" href="/2022/02/20/%E7%AC%AC%E4%B8%80%E7%AF%87%E5%8D%9A%E5%AE%A2/">第一篇博客</a>
+      <a class="p-name article-title" href="/2022/02/20/%E7%AC%AC%E4%B8%80%E7%AF%87%E5%8D%9A%E5%AE%A2/">Qt线程同步（一）</a>
     </h1>
   
 
@@ -93,11 +93,72 @@
     
     <div class="e-content article-entry" itemprop="articleBody">
       
-        
+        <h2 id="线程同步的概念"><a href="#线程同步的概念" class="headerlink" title="线程同步的概念"></a>线程同步的概念</h2><p>​       当有一个线程在对内存进行操作时，其他线程都不可以对这个内存地址进行操作，直到该线程完成操作， 其他线程才能对该内存地址进行操作，而其他线程又处于等待状态，实现线程同步的类有很多，如QMutex、QMutexLocker、QReadWriteLock、QReadLocker、QWriteLocker、QWaitCondition和QSemaphore.</p>
+<h2 id="基于互斥量的线程同步（QMutex类、QMutexLocker类）"><a href="#基于互斥量的线程同步（QMutex类、QMutexLocker类）" class="headerlink" title="基于互斥量的线程同步（QMutex类、QMutexLocker类）"></a>基于互斥量的线程同步（QMutex类、QMutexLocker类）</h2><p><strong>QMutex类</strong>是对互斥量的处理，它被用来保护一段临界区的代码，即每次值允许一个线程访问这段代码。</p>
+<p><strong>QMutex类的函数：</strong></p>
+<p><strong>lock() :</strong> 锁定互斥量，如果另一个县城锁定此互斥量，它将阻塞执行直到其他线程解锁这个互斥量。</p>
+<p><strong>unlock() :</strong> 解锁一个互斥量，需要与lock( )配对使用。</p>
+<p><strong>trylock():</strong>  试图解锁一个互斥量，如果成功锁定就返回true;如果其他线程已经锁定了这个互斥量，就返回ifalse,但不阻塞程序进行。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">public:</span><br><span class="line">    int creatKey()</span><br><span class="line">    &#123;</span><br><span class="line">        mutex.lock();</span><br><span class="line">        ++key;</span><br><span class="line">        return key;</span><br><span class="line">        mutex.unlock();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    int value() const</span><br><span class="line">    &#123;</span><br><span class="line">        mutex.lock();</span><br><span class="line">        return key;</span><br><span class="line">        mutex.unlock();</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">private:</span><br><span class="line">    int key = 0;</span><br><span class="line">    QMutex mutex; </span><br></pre></td></tr></table></figure>
+
+<p>上面的代码里面creatKey()函数与value()函数虽然使用mutex进行互斥操作，但是unlock操作不得不在return之后，从而导致unlock操作永远无法执行。</p>
+<p><strong>QMutexLocker类</strong>可以简化互斥量的处理，它在构造函数中接收一个QMutex对象作为参数并将其锁定，在构造函数中解锁这个互斥量，这样就解决了上述问题。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">public:</span><br><span class="line">    int creatKey()</span><br><span class="line">    &#123;</span><br><span class="line">        QMutexLocker locker(&amp;mutex);</span><br><span class="line">        ++key;</span><br><span class="line">        return key;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    int value() const</span><br><span class="line">    &#123;</span><br><span class="line">        QMutexLocker locker(&amp;mutex);</span><br><span class="line">        return key;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">private:</span><br><span class="line">    int key = 0;</span><br><span class="line">    QMutex mutex; </span><br></pre></td></tr></table></figure>
+
+<h2 id="基于QReadWriteLock的线程同步"><a href="#基于QReadWriteLock的线程同步" class="headerlink" title="基于QReadWriteLock的线程同步"></a>基于QReadWriteLock的线程同步</h2><p>使用互斥量时存在一个问题：每次只有一个线程获取互斥量的权限。如果在一个程序中有多个线程获取某个变量，使用互斥量时也必须排队，而实际上若只是读取一个变量，是可以让多个线程访问的，这样互斥量就会降低程序的性能。</p>
+<p><strong>QReadWriteLock提供的主要函数：</strong><br>**lockForRead()**：以只读方式锁定资源，如果其他线程以写入方式锁定，这个函数会阻塞。<br>**lockForWrite()**： 以只写入方式锁定资源，如果本线程或其他线程以读或写模式锁定资源，这个函数会阻塞。<br><strong>tryLockForRead()</strong> ：是lockForRead()的非阻塞版本。<br>**tryLockForWrite()**： 是lockForWrite()的非阻塞版本。<br>**unlock()**： 解锁。</p>
+<p>例如：</p>
+<p>假设有一个数据采集程序，一个线程负责采集数据到缓存区，一个线程负责读取缓存区的数据并显示，另一个线程负责读取缓存区的数据并保存到文件，代码如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">int buffer[100;</span><br><span class="line">QMutex mutex;</span><br><span class="line"></span><br><span class="line">void threadDAQ::run()</span><br><span class="line">&#123;</span><br><span class="line">    ...</span><br><span class="line">    mutex.lock();</span><br><span class="line">    get_data_and_write_in_buffer();   /* 采集数据到缓存区 */</span><br><span class="line">    mutex.unlock();</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">    void threadShow::run()</span><br><span class="line">&#123;</span><br><span class="line">    ...</span><br><span class="line">    mutex.lock();</span><br><span class="line">    show_buffer();                    /* 读取缓存区的数据并显示 */</span><br><span class="line">    mutex.unlock();</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">void threadSaveFile::run()</span><br><span class="line">&#123;</span><br><span class="line">    ...</span><br><span class="line">    mutex.lock();</span><br><span class="line">    save_buffer_toFile();           /* 读取缓存区的数据并保存到文件 */</span><br><span class="line">    mutex.unlock();</span><br><span class="line">  </span><br></pre></td></tr></table></figure>
+
+<p>使用QReadWriteLock,改写上面的三个线程代码：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">int buffer[100;</span><br><span class="line">QReadWriteLock Lock;</span><br><span class="line"></span><br><span class="line">void threadDAQ::run()</span><br><span class="line">&#123;</span><br><span class="line">    ...</span><br><span class="line">    Lock.lockForWrite();</span><br><span class="line">    get_data_and_write_in_buffer();   /* 采集数据到缓存区 */</span><br><span class="line">    Lock.unlock();</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br><span class="line">   </span><br><span class="line">    void threadShow::run()</span><br><span class="line">&#123;</span><br><span class="line">    ...</span><br><span class="line">    Lock.lockForRead();</span><br><span class="line">    show_buffer();            /* 读取缓存区的数据并显示 */</span><br><span class="line">    Lock.unlock();</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br><span class="line">   </span><br><span class="line">void threadSaveFile::run()</span><br><span class="line">&#123;</span><br><span class="line">    ...</span><br><span class="line">    Lock.lockForRead();</span><br><span class="line">    save_buffer_toFile();    /* 读取缓存区的数据并保存到文件 */</span><br><span class="line">    Lock.unlock();</span><br><span class="line">    ...</span><br><span class="line">&#125; </span><br></pre></td></tr></table></figure>
+
+<p>这样,如果 threadDAQ没有以lockForWrite()锁定信Lock,threadShow 和 threadSaveFile可以时访问 buffer，否则threadShow 和 threadSaveFile都被阻塞,如果threadShow和threadSaveFitle都没有锁定，那么 threadDAQ能以写入方式锁定，否则 threadDAQ就被阻塞。</p>
+<p><strong>QReadLocker和 QWriteLocker</strong> 是 QReadWriteLock的简便形式,如同 OMutexLocker是 QMuox简便版本一样，无需与unlock()配对使用。</p>
+<p>使用QReadLocker和 QWiteLocker,则上面的代码改写为:</p>
+<pre><code>     int buffer[100;
+     QReadWriteLock Lock;
+    
+    void threadDAQ::run()
+    &#123;
+        ...
+        QWriterLocker Locker(&amp;Lock);
+        get_data_and_write_in_buffer();   /* 采集数据到缓存区 */
+        ...
+    &#125;
+
+        void threadShow::run()
+    &#123;
+        ...
+        QReadLocker Locker(&amp;Lock);
+        show_buffer();            /* 读取缓存区的数据并显示 */
+        ...
+    &#125;
+
+    void threadSaveFile::run()
+    &#123;
+        ...
+        QWriterLocker Locker(&amp;Lock);
+        save_buffer_toFile();    /* 读取缓存区的数据并保存到文件 */
+        ...
+    &#125; 
+</code></pre>
+<h2 id="基于QWaitCondition的线程同步"><a href="#基于QWaitCondition的线程同步" class="headerlink" title="基于QWaitCondition的线程同步"></a>基于QWaitCondition的线程同步</h2><p>在多线程的程序中，多个线程之间的同步实际上就是它们之间的协调问题,例如上面3个线程的例子中，假设threadDAQ写满个缓冲区之后，threadShow和threadSaveFile才能对缓冲区进行读操作，前面采用的互斥量和基于QReadWriteL.ock 的方法都是对资源的锁定和钢解锁， 避免同时访问资原时发生冲突。在个线程解锁资源后， 不能及时通知其他线程。</p>
+<p>QWaitcondition提供了另外种改进线程同步方法。QWaitConditon与QMutex结合。可以使一个线程在满足一定条件时通知其他多个线程，使它们及时作出响应，这样比只使用互斥量效率要高一些。例如，threadDAQ 在写满一个缓冲区之后，及时通知threadShow和threadSaveFile使它们可以及时读取缓冲区数据。</p>
+<p><strong>QWaitCondition提供如下一些函数：</strong></p>
+<p>**wait(QMutex *lockedMutex)**: 解锁互斥量lockedMutex. 并阻塞等待唤醒条件，被唤醒后锁定lockedMutex并退出函数:<br><strong>wakeAll():</strong> 唤醒所有处于等待状态的线程，线程唤醒的顺序不确定，由操作系统的调度策略决定:<br> <strong>wakeOne():</strong>  唤醒一个处于等待状态的线程，唤醒哪个线程不确定，由操作系统的调度策略决定。</p>
+<p>QWaitCondition 一般用于“生产者&#x2F;消费者”(producer&#x2F;consumer) 模型中。“生产者”产生数据，“消费者”使用数据，前述的数据采集、显示与存储的三线程例子就适用这种模型。</p>
+<h2 id="基于信号量的线程同步"><a href="#基于信号量的线程同步" class="headerlink" title="基于信号量的线程同步"></a>基于信号量的线程同步</h2><p>信号量的原理<br>信号量( Semaphore)是另一种限制对共享资源进行访问的线程同步机制，它与互后量（Mutex）相似，但是有区别,一个互斥量只能被锁定 一次， 而信号量可以多次使用。信号量通常用来保护一定数量的相同的资源，如数据采集时的双缓冲区。</p>
+<p><strong>QSemaphore</strong>是实现信号量功能的类，它提供以下几个基本的函数:<br>**acquire(int n)**尝试获得n个资源。如果没有这么多资源，线程将阻塞直到有n个资源可用:<br>**release(int n)**释放n个资源，如果信号量的资源已全部可用之后再release（), 就可以创建更多的资源，增加可用资源的个数:<br><strong>int avilable（）</strong>返回 当前信号量可用的资源个数，这个数永远不可能为负数，如果为0，就说明当前没有资源可用:<br><strong>bool tryAcquire(int n &#x3D; 1)</strong> 尝试获取n个资源，不成功时不阻塞线程。</p>
+<p>定义QSemaphore的实例时，可以传递一个数值作为初始可用的资源个数。<br>下面的一段示意代码，说明QSemaphore的几个函数的作用。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">QSemaphore WC(5);            //WC. available() == 5,初始资源个数为5个</span><br><span class="line">WC.acquire(4);               //WC. available() == 1,用了 4个资源， 还剩余1个可用</span><br><span class="line">WC.release (2);  			 //WC. available() == 3释放了2个资源，剩余3个可用</span><br><span class="line">WC.acquire(3);               //WC. available() == 0,又用了3个资源，剩余0个可用</span><br><span class="line">WC. tryAcquire(1);           //因为WC. available() == 0,返回false.</span><br><span class="line">WC.acquire();                //因为WC. available() == 0,没有资源可用，阻塞</span><br></pre></td></tr></table></figure>
+
+
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://example.com/2022/02/20/%E7%AC%AC%E4%B8%80%E7%AF%87%E5%8D%9A%E5%AE%A2/" data-id="ckzukp9xd00015sv5grtk51za" data-title="第一篇博客" class="article-share-link">Share</a>
+      <a data-url="http://example.com/2022/02/20/%E7%AC%AC%E4%B8%80%E7%AF%87%E5%8D%9A%E5%AE%A2/" data-id="cl00gmeg30001jsv55vezby6p" data-title="Qt线程同步（一）" class="article-share-link">Share</a>
       
       
       
@@ -148,7 +209,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://example.com/2022/02/20/hello-world/" data-id="ckzukp9x700005sv5crzk0a5e" data-title="Hello World" class="article-share-link">Share</a>
+      <a data-url="http://example.com/2022/02/20/hello-world/" data-id="cl00gmefx0000jsv5dw2mbrgf" data-title="Hello World" class="article-share-link">Share</a>
       
       
       
@@ -191,7 +252,7 @@
       <ul>
         
           <li>
-            <a href="/2022/02/20/%E7%AC%AC%E4%B8%80%E7%AF%87%E5%8D%9A%E5%AE%A2/">第一篇博客</a>
+            <a href="/2022/02/20/%E7%AC%AC%E4%B8%80%E7%AF%87%E5%8D%9A%E5%AE%A2/">Qt线程同步（一）</a>
           </li>
         
           <li>
